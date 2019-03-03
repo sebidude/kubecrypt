@@ -1,7 +1,11 @@
 # kubecrypt
 
-kubecrypt wants to help you to solve a bundch of problems when it comes to secrets.  
-It can do the following thinngs:
+kubecrypt wants to help you to solve a bunch of problems when it comes to secrets.  
+This project was inspired by [Bitnami Labs sealed-secrets](https://github.com/bitnami-labs/sealed-secrets) and the fact that I needed to solve some problems around storing secret data and use them in pipelining.  
+
+Contributions are welcome. The code is working and tested manually. As this is a kubernetes client, I recommend to build the tool and deploy it with some docker image if you need to use it in your pipelines.  
+
+It can do the following things:
 * list secrets for a namespace
 * print values from a secret
 * encrypt /decrypt data using a tls secret from the cluster
