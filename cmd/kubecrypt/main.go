@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"os"
 	"reflect"
+	"strings"
 
 	"github.com/alecthomas/kingpin"
 	"github.com/ghodss/yaml"
@@ -27,17 +28,19 @@ var (
 	clientconfig *rest.Config
 	clientset    *kubernetes.Clientset
 
-	output     string
-	namespace  string
-	secretname string
-	keyname    string
-	encrypt    bool
-	tlssecret  string
-	keyvalues  = make(map[string]string)
-	labels     = make(map[string]string)
-	remove     []string
-	filename   = "-"
-	outfile    = "-"
+	output       string
+	namespace    string
+	secretname   string
+	keyname      string
+	encrypt      bool
+	tlsinfo      string
+	tlssecret    string
+	tlsnamespace string
+	keyvalues    = make(map[string]string)
+	labels       = make(map[string]string)
+	remove       []string
+	filename     = "-"
+	outfile      = "-"
 )
 
 func main() {
@@ -46,7 +49,7 @@ func main() {
 	app.Flag("namespace", "Kubernetes namespace to be used.").Short('n').Envar("KUBECRYPT_NAMESPACE").StringVar(&namespace)
 	app.Flag("in", "Input file to read from").Short('i').StringVar(&filename)
 	app.Flag("out", "Output file to write the data to").Short('o').StringVar(&outfile)
-	app.Flag("tls", "Name of the tls secret to be used for crypto operations.").Default("kubecrypt").Envar("KUBECRYPT_SECRET").Short('t').StringVar(&tlssecret)
+	app.Flag("tls", "Namespace/Name of the tls secret to be used for crypto operations.").Default("kubecrypt/kubecrypt").Envar("KUBECRYPT_SECRET").Short('t').StringVar(&tlsinfo)
 
 	get := app.Command("get", "Get the secret data.")
 	get.Arg("secretname", "Name of the secret.").Required().StringVar(&secretname)
@@ -96,6 +99,13 @@ func main() {
 
 	operation := kingpin.MustParse(app.Parse(os.Args[1:]))
 
+	tlsinfoparts := strings.Split(tlsinfo, "/")
+	if len(tlsinfoparts) != 2 {
+		checkError(fmt.Errorf("Malformed tlsinfo. Use -t namespace/secret."))
+	}
+	tlsnamespace = tlsinfoparts[0]
+	tlssecret = tlsinfoparts[1]
+
 	if namespace == "" {
 		namespace, _, err = clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
 			clientcmd.NewDefaultClientConfigLoadingRules(),
@@ -137,7 +147,7 @@ func main() {
 		writeOutputToFile(yamldata)
 	case "convert":
 		if encrypt {
-			s, err := loadSecret(secretname)
+			s, err := loadSecret(secretname, namespace)
 			checkError(err)
 			m := make(map[string]map[string]string)
 			m[keyname] = make(map[string]string)
@@ -162,7 +172,7 @@ func main() {
 		kube.ToManifest(s, o)
 
 	case "update":
-		s, err := loadSecret(secretname)
+		s, err := loadSecret(secretname, namespace)
 		checkError(err)
 		if s == nil {
 			fmt.Printf("Secret %q not found in namespace %q\n", secretname, namespace)
@@ -217,7 +227,7 @@ func writeOutputToFile(data []byte) {
 }
 
 func decryptData(data []byte) []byte {
-	s, err := loadSecret(tlssecret)
+	s, err := loadSecret(tlssecret, tlsnamespace)
 	checkError(err)
 	if _, ok := s.Data["tls.key"]; !ok {
 		checkError(fmt.Errorf("No tls.key found in secret."))
@@ -235,7 +245,7 @@ func decryptData(data []byte) []byte {
 func encryptData(data []byte) []byte {
 	// load the cert from the secret
 	var certpem []byte
-	s, err := loadSecret(tlssecret)
+	s, err := loadSecret(tlssecret, tlsnamespace)
 	checkError(err)
 	certpem = s.Data["tls.crt"]
 
@@ -339,14 +349,14 @@ func getSecret() {
 	}
 }
 
-func loadSecret(secretname string) (*corev1.Secret, error) {
-	secrets := kube.GetSecretList(clientset, namespace)
+func loadSecret(secretname string, ns string) (*corev1.Secret, error) {
+	secrets := kube.GetSecretList(clientset, ns)
 	for _, s := range secrets.Items {
 		if s.Name == secretname {
 			return &s, nil
 		}
 	}
-	return nil, fmt.Errorf("Secret %s not found in namespace %s", secretname, namespace)
+	return nil, fmt.Errorf("Secret %s not found in namespace %s", secretname, ns)
 }
 
 func updateSecret(s *corev1.Secret, items interface{}) {
