@@ -54,6 +54,7 @@ func main() {
 
 	app.Command("enc", "encrypt a secret")
 	app.Command("dec", "decrypt")
+	app.Command("version", "Print the version.")
 
 	upd := app.Command("update", "Update the value of a secret for a given key")
 	upd.Arg("secretname", "The name of the secret to be updated").Required().StringVar(&secretname)
@@ -146,6 +147,8 @@ func main() {
 			updateSecret(s, remove)
 		}
 
+	case "version":
+		fmt.Printf("kubecrypt\n version: %s\n commit: %s\n buildtime: %s\n", appversion, gitcommit, buildtime)
 	}
 }
 

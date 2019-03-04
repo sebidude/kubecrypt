@@ -26,10 +26,9 @@ info:
 dep:
 	@go get -v -d ./...
 
-install:
-	go install github.com/sebidude/kubecrypt/cmd/kubecrypt
-
-
+install: build-linux
+	cp build/linux/kubecrypt $$GOPATH/bin/
+	
 build-linux: info dep
 	@echo Building for linux
 	@mkdir -p build/linux
