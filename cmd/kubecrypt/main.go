@@ -43,7 +43,7 @@ var (
 func main() {
 
 	app := kingpin.New(os.Args[0], "encrypt decrypt data, convert yaml maps to kubernetes secrets and edit kubernetes secrets.")
-	app.Flag("namespace", "Kubernetes namespace to be used.").Default("kubecrypt").Short('n').Envar("KUBECRYPT_NAMESPACE").StringVar(&namespace)
+	app.Flag("namespace", "Kubernetes namespace to be used.").Short('n').Envar("KUBECRYPT_NAMESPACE").StringVar(&namespace)
 	app.Flag("in", "Input file to read from").Short('i').StringVar(&filename)
 	app.Flag("out", "Output file to write the data to").Short('o').StringVar(&outfile)
 	app.Flag("tls", "Name of the tls secret to be used for crypto operations.").Default("kubecrypt").Envar("KUBECRYPT_SECRET").Short('t').StringVar(&tlssecret)
@@ -94,7 +94,19 @@ func main() {
 		panic(err.Error())
 	}
 
-	switch kingpin.MustParse(app.Parse(os.Args[1:])) {
+	operation := kingpin.MustParse(app.Parse(os.Args[1:]))
+
+	if namespace == "" {
+		namespace, _, err = clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
+			clientcmd.NewDefaultClientConfigLoadingRules(),
+			&clientcmd.ConfigOverrides{},
+		).Namespace()
+		if err != nil {
+			panic(err.Error())
+		}
+	}
+
+	switch operation {
 	case "list":
 		listSecrets()
 	case "get":
