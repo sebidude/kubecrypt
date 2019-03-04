@@ -57,7 +57,7 @@ test:
 	@echo -n "Apply secret to cluster: "
 	@kubectl apply -f mysecret.yaml -n kubecrypt
 	@echo -n "Load a secret from the cluster: "
-	@build/linux/kubecrypt get mysecret | grep testme >/dev/null
+	@build/linux/kubecrypt -n kubecrypt get mysecret | grep testme >/dev/null
 	@echo "ok"
 
 clean-tests:
