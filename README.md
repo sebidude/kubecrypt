@@ -102,3 +102,17 @@ kubecrypt yaml -i safe.yaml -k data
 ```
 kubecrypt convert mysecret -i safe.yaml -k data -o mysecret.yaml
 ```
+
+---
+### Update and remove keys from kubernetes secrets in cluster
+
+Update a key of an existing secret, if the key doesn't exist it will be added to the secret
+
+```
+kubecrypt update -k foo=bar -k token=updatedToken mysecret
+```
+
+Remove a key from secret
+```
+kubecrypt update -r foo mysecret
+```
