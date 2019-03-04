@@ -125,7 +125,8 @@ func main() {
 		writeOutputToFile(yamldata)
 	case "convert":
 		if encrypt {
-			s := loadSecret(secretname)
+			s, err := loadSecret(secretname)
+			checkError(err)
 			m := make(map[string]map[string]string)
 			m[keyname] = make(map[string]string)
 
@@ -149,7 +150,8 @@ func main() {
 		kube.ToManifest(s, o)
 
 	case "update":
-		s := loadSecret(secretname)
+		s, err := loadSecret(secretname)
+		checkError(err)
 		if s == nil {
 			fmt.Printf("Secret %q not found in namespace %q\n", secretname, namespace)
 			break
@@ -203,7 +205,8 @@ func writeOutputToFile(data []byte) {
 }
 
 func decryptData(data []byte) []byte {
-	s := loadSecret(tlssecret)
+	s, err := loadSecret(tlssecret)
+	checkError(err)
 	if _, ok := s.Data["tls.key"]; !ok {
 		checkError(fmt.Errorf("No tls.key found in secret."))
 	}
@@ -220,7 +223,8 @@ func decryptData(data []byte) []byte {
 func encryptData(data []byte) []byte {
 	// load the cert from the secret
 	var certpem []byte
-	s := loadSecret(tlssecret)
+	s, err := loadSecret(tlssecret)
+	checkError(err)
 	certpem = s.Data["tls.crt"]
 
 	if len(certpem) == 0 {
@@ -323,14 +327,14 @@ func getSecret() {
 	}
 }
 
-func loadSecret(secretname string) *corev1.Secret {
+func loadSecret(secretname string) (*corev1.Secret, error) {
 	secrets := kube.GetSecretList(clientset, namespace)
 	for _, s := range secrets.Items {
 		if s.Name == secretname {
-			return &s
+			return &s, nil
 		}
 	}
-	return nil
+	return nil, fmt.Errorf("Secret %s not found in namespace %s", secretname, namespace)
 }
 
 func updateSecret(s *corev1.Secret, items interface{}) {
