@@ -7,7 +7,6 @@ import (
 	"io/ioutil"
 	"os"
 	"reflect"
-	"strings"
 
 	"github.com/alecthomas/kingpin"
 	"github.com/ghodss/yaml"
@@ -35,6 +34,7 @@ var (
 	encrypt    bool
 	tlssecret  string
 	keyvalues  = make(map[string]string)
+	labels     = make(map[string]string)
 	remove     []string
 	filename   = "-"
 	outfile    = "-"
@@ -51,7 +51,6 @@ func main() {
 	get := app.Command("get", "Get the secret data.")
 	get.Arg("secretname", "Name of the secret.").Required().StringVar(&secretname)
 	get.Flag("key", "Name of the key in the secret").Default("").Short('k').StringVar(&keyname)
-	get.Flag("format", "Output format: simple (no keys), yaml , env (oneliner of shell vars), export (for sourcing the output), gradle (for use with gradle)").Default("yaml").Short('f').HintOptions("simple", "env", "yaml", "export").StringVar(&output)
 
 	app.Command("enc", "encrypt a secret")
 	app.Command("dec", "decrypt")
@@ -70,6 +69,7 @@ func main() {
 	convert.Arg("secretname", "Name for the converted secret.").Required().StringVar(&secretname)
 	convert.Flag("ecrypt", "Encrypt the values (default decrypt").Short('e').BoolVar(&encrypt)
 	convert.Flag("key", "Key in the yaml to be used as data for the secret").Default("secrets").Short('k').StringVar(&keyname)
+	convert.Flag("labels", "the labels to be applied to the new secret").Short('l').StringMapVar(&labels)
 
 	app.Command("list", "List the secrets.")
 
@@ -124,10 +124,13 @@ func main() {
 		writeOutputToFile(yamldata)
 	case "convert":
 		inputbytes := readInputFromFile(filename)
-		//fmt.Println(string(inputbytes))
 		_, datamap := processYamlData(encrypt, inputbytes)
 		o := getOutputFile()
 		s := kube.NewSecret(datamap, secretname)
+		if len(labels) > 0 {
+			s.ObjectMeta.Labels = labels
+		}
+
 		kube.ToManifest(s, o)
 
 	case "update":
@@ -146,6 +149,13 @@ func main() {
 	}
 }
 
+func checkError(err error) {
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+}
+
 func readInputFromFile(filename string) []byte {
 	var inputError error
 	var input *os.File
@@ -153,16 +163,12 @@ func readInputFromFile(filename string) []byte {
 		input = os.Stdin
 	} else {
 		input, inputError = os.Open(filename)
-		if inputError != nil {
-			panic(inputError)
-		}
+		checkError(inputError)
 		defer input.Close()
 	}
 
 	data, err := ioutil.ReadAll(input)
-	if err != nil {
-		panic(err)
-	}
+	checkError(err)
 	return data
 }
 
@@ -174,10 +180,7 @@ func writeOutputToFile(data []byte) {
 
 	// output the ciphertext
 	output, err := os.Create(outfile)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
+	checkError(err)
 	defer output.Close()
 	output.Write(data)
 }
@@ -185,13 +188,15 @@ func writeOutputToFile(data []byte) {
 func decryptData(data []byte) []byte {
 	s := loadSecret(tlssecret)
 	if _, ok := s.Data["tls.key"]; !ok {
-		panic("No tls.key found in secret.")
+		checkError(fmt.Errorf("No tls.key found in secret."))
 	}
 
 	keypem := s.Data["tls.key"]
-	key := crypto.BytesToPrivateKey(keypem)
+	key, err := crypto.BytesToPrivateKey(keypem)
+	checkError(err)
 
-	cleartext := crypto.Decrypt(rand.Reader, key, data)
+	cleartext, err := crypto.Decrypt(rand.Reader, key, data)
+	checkError(err)
 	return cleartext
 }
 
@@ -202,7 +207,7 @@ func encryptData(data []byte) []byte {
 	certpem = s.Data["tls.crt"]
 
 	if len(certpem) == 0 {
-		panic("Failed to load cert for encryption.")
+		checkError(fmt.Errorf("Failed to load cert for encryption."))
 	}
 
 	rsaPublicKey := crypto.ReadPublicKeyFromCertPem(certpem)
@@ -217,28 +222,15 @@ func printOutput(s corev1.Secret, lookupkey string) {
 
 	if len(lookupkey) > 0 {
 		if _, ok := s.Data[lookupkey]; !ok {
-			fmt.Printf("The key %s does not exist.\n", lookupkey)
-			return
+			checkError(fmt.Errorf("The key %s does not exist.\n", lookupkey))
 		}
-		if output == "yaml" {
-			fmt.Printf("%s: %s\n", lookupkey, s.Data[lookupkey])
-			return
-		}
+		fmt.Printf("%s\n", lookupkey, s.Data[lookupkey])
+		return
+
 	} else {
 		for _, v := range keys {
 			key := v.String()
-			data := fmt.Sprintf("%q", s.Data[key])
-			if output == "yaml" {
-				fmt.Printf("%s: %s\n", key, s.Data[key])
-			} else if output == "env" {
-				fmt.Printf("%s=%q ", strings.Replace(strings.ToUpper(key), ".", "_", -1), data)
-			} else if output == "export" {
-				fmt.Printf("export %s=%q\n", strings.Replace(strings.ToUpper(key), ".", "_", -1), data)
-			} else if output == "gradle" {
-				fmt.Printf("-P%s=%s ", key, s.Data[key])
-			} else {
-				fmt.Printf("%s\n", data)
-			}
+			fmt.Printf("%s: %s\n", key, s.Data[key])
 		}
 	}
 }
@@ -247,12 +239,10 @@ func processYamlData(encryt bool, content []byte) ([]byte, map[string][]byte) {
 	datamap := make(map[string][]byte)
 	var yamlcontent map[string]interface{}
 	err := yaml.Unmarshal(content, &yamlcontent)
-	if err != nil {
-		panic(err)
-	}
+	checkError(err)
 
 	if _, ok := yamlcontent[keyname]; !ok {
-		panic("key does not exist in yaml.")
+		checkError(fmt.Errorf("key does not exist in yaml."))
 	}
 	if yamlmap, ok := yamlcontent[keyname].(map[string]interface{}); ok {
 
@@ -265,24 +255,20 @@ func processYamlData(encryt bool, content []byte) ([]byte, map[string][]byte) {
 					yamlmap[k] = base64.RawURLEncoding.EncodeToString(c)
 				} else {
 					s, err := base64.RawURLEncoding.DecodeString(v.(string))
-					if err != nil {
-						panic(err)
-					}
+					checkError(err)
 					c := decryptData(s)
 					yamlmap[k] = string(c)
 					datamap[k] = []byte(c)
 				}
 
 			default:
-				panic("Only strings are allowed as values.")
+				checkError(fmt.Errorf("Only strings are allowed as values."))
 			}
 		}
 		yamlcontent[keyname] = yamlmap
 	}
 	content, err = yaml.Marshal(yamlcontent)
-	if err != nil {
-		panic(err)
-	}
+	checkError(err)
 
 	return content, datamap
 }
@@ -294,14 +280,8 @@ func getOutputFile() *os.File {
 
 	// output the ciphertext
 	output, err := os.Create(outfile)
-	if err != nil {
-		panic(err)
-	}
+	checkError(err)
 	return output
-}
-
-func convertToSecret(data map[string][]byte) {
-
 }
 
 func listSecrets() {
@@ -352,7 +332,5 @@ func updateSecret(s *corev1.Secret, items interface{}) {
 	}
 
 	_, err := clientset.CoreV1().Secrets(namespace).Update(s)
-	if err != nil {
-		panic(err)
-	}
+	checkError(err)
 }

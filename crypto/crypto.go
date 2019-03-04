@@ -9,22 +9,22 @@ import (
 	"crypto/x509"
 	"encoding/binary"
 	"encoding/pem"
+	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 )
 
 var (
 	label = []byte("9c96d939c7f30920e17c18d7e97cc7e85a2f03d78c6b563ff38964ee02477d94")
 )
 
-func Decrypt(rnd io.Reader, privKey *rsa.PrivateKey, ciphertext []byte) []byte {
+func Decrypt(rnd io.Reader, privKey *rsa.PrivateKey, ciphertext []byte) ([]byte, error) {
 	if len(ciphertext) < 2 {
-		panic("ciphertext is too short")
+		return nil, fmt.Errorf("ciphertext is too short")
 	}
 	rsaLen := int(binary.BigEndian.Uint16(ciphertext))
 	if len(ciphertext) < rsaLen+2 {
-		panic("ciphertext is too short")
+		return nil, fmt.Errorf("ciphertext is too short")
 	}
 
 	rsaCipher := ciphertext[2 : rsaLen+2]
@@ -32,27 +32,27 @@ func Decrypt(rnd io.Reader, privKey *rsa.PrivateKey, ciphertext []byte) []byte {
 
 	sessionKey, err := rsa.DecryptOAEP(sha256.New(), rnd, privKey, rsaCipher, label)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
 	block, err := aes.NewCipher(sessionKey)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
 	aed, err := cipher.NewGCM(block)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
 	zeroNonce := make([]byte, aed.NonceSize())
 
 	plaintext, err := aed.Open(nil, zeroNonce, aesCipher, nil)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
-	return plaintext
+	return plaintext, nil
 }
 
 func Encrypt(rnd io.Reader, pubKey *rsa.PublicKey, plaintext []byte) []byte {
@@ -126,8 +126,8 @@ func ReadPrivateKeyFromFile(filename string) (*rsa.PrivateKey, error) {
 	if err != nil {
 		return nil, err
 	}
-	key := BytesToPrivateKey(keybytes)
-	return key, nil
+	key, err := BytesToPrivateKey(keybytes)
+	return key, err
 }
 
 func ReadPublicKeyFromFile(filename string) (*rsa.PublicKey, error) {
@@ -135,8 +135,8 @@ func ReadPublicKeyFromFile(filename string) (*rsa.PublicKey, error) {
 	if err != nil {
 		return nil, err
 	}
-	key := BytesToPublicKey(keybytes)
-	return key, nil
+	key, err := BytesToPublicKey(keybytes)
+	return key, err
 }
 
 // PrivateKeyToBytes private key to bytes
@@ -152,10 +152,10 @@ func PrivateKeyToBytes(priv *rsa.PrivateKey) []byte {
 }
 
 // PublicKeyToBytes public key to bytes
-func PublicKeyToBytes(pub *rsa.PublicKey) []byte {
+func PublicKeyToBytes(pub *rsa.PublicKey) ([]byte, error) {
 	pubASN1, err := x509.MarshalPKIXPublicKey(pub)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
 	pubBytes := pem.EncodeToMemory(&pem.Block{
@@ -163,11 +163,11 @@ func PublicKeyToBytes(pub *rsa.PublicKey) []byte {
 		Bytes: pubASN1,
 	})
 
-	return pubBytes
+	return pubBytes, nil
 }
 
 // BytesToPrivateKey bytes to private key
-func BytesToPrivateKey(priv []byte) *rsa.PrivateKey {
+func BytesToPrivateKey(priv []byte) (*rsa.PrivateKey, error) {
 	block, _ := pem.Decode(priv)
 	enc := x509.IsEncryptedPEMBlock(block)
 	b := block.Bytes
@@ -175,18 +175,18 @@ func BytesToPrivateKey(priv []byte) *rsa.PrivateKey {
 	if enc {
 		b, err = x509.DecryptPEMBlock(block, nil)
 		if err != nil {
-			log.Println(err)
+			return nil, err
 		}
 	}
 	key, err := x509.ParsePKCS1PrivateKey(b)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
-	return key
+	return key, nil
 }
 
 // BytesToPublicKey bytes to public key
-func BytesToPublicKey(pub []byte) *rsa.PublicKey {
+func BytesToPublicKey(pub []byte) (*rsa.PublicKey, error) {
 	block, _ := pem.Decode(pub)
 	enc := x509.IsEncryptedPEMBlock(block)
 	b := block.Bytes
@@ -194,16 +194,16 @@ func BytesToPublicKey(pub []byte) *rsa.PublicKey {
 	if enc {
 		b, err = x509.DecryptPEMBlock(block, nil)
 		if err != nil {
-			panic(err)
+			return nil, err
 		}
 	}
 	ifc, err := x509.ParsePKIXPublicKey(b)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	key, ok := ifc.(*rsa.PublicKey)
 	if !ok {
 		panic("cannot type cast key into rsa public key")
 	}
-	return key
+	return key, nil
 }

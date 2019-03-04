@@ -1,14 +1,16 @@
 package kube
 
 import (
-	"os"
-
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/serializer/json"
 	"k8s.io/client-go/kubernetes"
 )
+
+type Output interface {
+	Write(p []byte) (n int, err error)
+}
 
 func GetSecretList(clientset *kubernetes.Clientset, namespace string) *corev1.SecretList {
 	secrets, err := clientset.CoreV1().Secrets(namespace).List(metav1.ListOptions{})
@@ -18,7 +20,7 @@ func GetSecretList(clientset *kubernetes.Clientset, namespace string) *corev1.Se
 	return secrets
 }
 
-func ToManifest(o interface{}, out *os.File) {
+func ToManifest(o interface{}, out Output) {
 	e := json.NewYAMLSerializer(json.DefaultMetaFactory, nil, nil)
 	obj := o.(runtime.Object)
 	err := e.Encode(obj, out)
