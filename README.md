@@ -28,7 +28,7 @@ go install github.com/sebidude/kubecrypt/cmd/kubecrypt
 You can always use the --help flag. Beside handling your secrets you can also use kubecrypt to quickly encrypt some text and share it with your co-workers via chat in a secure way.  
 Generate a key and a self-signed cert for kubecrypt
 ```
-openssl genrsa -nodes -out tls.key 4096
+openssl genrsa -out tls.key 4096
 openssl req -key tls.key -x509 -days 365 -out tls.crt -subj "/C=XX/ST=Coruscant/L=Temple/O=Force/OU=Temple Admins/CN=Jedis"
 ```
 
