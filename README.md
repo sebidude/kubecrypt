@@ -26,6 +26,22 @@ go install github.com/sebidude/kubecrypt/cmd/kubecrypt
 ## Usage
 
 You can always use the --help flag. Beside handling your secrets you can also use kubecrypt to quickly encrypt some text and share it with your co-workers via chat in a secure way.  
+
+### Init the kubecrypt secret with kubecrypt
+By default kubecrypt will use a secret of type tls named `kubecrypt` in namespace `kubecrypt`. So first create the namespace `kubecrypt` and  then run init
+```
+kubectl create namespace kubecrypt
+kubecrypt init
+```
+If you want to use a different namespace and secretname, you can tell kubecrypt with `-t`
+```
+kubecrypt -t testing/secretencryption init
+```
+This will create a tls secret with name `secretencryption` in namespace `testing`. As kubecrypt has no config file you have to pass the `-t` option everytime if you don't use the default `kubecrypt/kubecrypt` with the `-t`flag. 
+
+### Init the kubecrypt secret manually.
+
+In case you don't want to use certs and key generated with openssl:
 Generate a key and a self-signed cert for kubecrypt
 ```
 openssl genrsa -out tls.key 4096
@@ -115,4 +131,23 @@ kubecrypt update -k foo=bar -k token=updatedToken mysecret
 Remove a key from secret
 ```
 kubecrypt update -r foo mysecret
+```
+
+### Backup the cert and key for kubecrypt
+To create a backup of the key and cert simply load them from the cluster:
+
+```
+# backup to textfile
+kubecrypt get -n kubecrypt kubecrypt > kubecrypt.backup.txt
+
+# backup to yamlfile
+kubecrypt convert kubecrypt -e -n kubecrypt -k secret | kubecrypt yaml -k secret > kubecrypt.yaml
+
+# backup to kubernetes secret
+kubectl get secret -n kubecrypt kubecrypt > kubecrypt.secret.yaml
+
+# backup to key and cert file
+kubecrypt get -n kubecrypt kubecrypt -k tls.key > kubecrypt.key
+kubecrypt get -n kubecrypt kubecrypt -k tls.crt > kubecrypt.crt
+
 ```

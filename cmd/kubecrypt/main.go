@@ -284,7 +284,7 @@ func printOutput(s corev1.Secret, lookupkey string) {
 		if _, ok := s.Data[lookupkey]; !ok {
 			checkError(fmt.Errorf("The key %s does not exist.\n", lookupkey))
 		}
-		fmt.Printf("%s\n", lookupkey, s.Data[lookupkey])
+		fmt.Printf("%s\n", s.Data[lookupkey])
 		return
 
 	} else {
