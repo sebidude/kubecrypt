@@ -12,6 +12,9 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
+	"math/big"
+	"time"
 )
 
 var (
@@ -95,6 +98,51 @@ func GenerateKeyPair(bits int) (*rsa.PrivateKey, *rsa.PublicKey) {
 		panic(err)
 	}
 	return privkey, &privkey.PublicKey
+}
+
+func GenerateCertificate(cn string, orgs []string, lifetime time.Duration) ([]byte, []byte, error) {
+
+	privkey, pubkey := GenerateKeyPair(4096)
+
+	notBefore := time.Now()
+	notAfter := notBefore.Add(lifetime)
+
+	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 128)
+	serialNumber, err := rand.Int(rand.Reader, serialNumberLimit)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to generate serial number: %s", err)
+	}
+
+	certTmpl := x509.Certificate{
+		SerialNumber: serialNumber,
+
+		NotBefore: notBefore,
+		NotAfter:  notAfter,
+		IsCA:      true,
+
+		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
+		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth},
+		BasicConstraintsValid: true,
+	}
+
+	if len(cn) > 0 {
+		certTmpl.Subject.CommonName = cn
+	} else {
+		certTmpl.Subject.CommonName = "kubecrypt encryption certificate"
+	}
+
+	if len(orgs) > 0 {
+		certTmpl.Subject.Organization = orgs
+	}
+
+	derBytes, err := x509.CreateCertificate(rand.Reader, &certTmpl, &certTmpl, pubkey, privkey)
+	if err != nil {
+		log.Fatalf("Failed to create certificate: %s", err)
+	}
+	certBytes := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: derBytes})
+	keyBytes := PrivateKeyToBytes(privkey)
+	return certBytes, keyBytes, nil
+
 }
 
 func ReadPublicKeyFromCertPem(certpem []byte) *rsa.PublicKey {

@@ -8,6 +8,7 @@ import (
 	"os"
 	"reflect"
 	"strings"
+	"time"
 
 	"github.com/alecthomas/kingpin"
 	"github.com/ghodss/yaml"
@@ -41,6 +42,9 @@ var (
 	remove       []string
 	filename     = "-"
 	outfile      = "-"
+	orgs         []string
+	commonName   string
+	lifetime     time.Duration
 )
 
 func main() {
@@ -58,6 +62,11 @@ func main() {
 	app.Command("enc", "encrypt a secret")
 	app.Command("dec", "decrypt")
 	app.Command("version", "Print the version.")
+
+	init := app.Command("init", "Generate the cert and key and add the secret for kubecrypt to the cluster.")
+	init.Flag("org", "Organisations for the x509 cert.").Short('O').StringsVar(&orgs)
+	init.Flag("cn", "CommonName for the x509 cert.").Default("kubecrypt").Short('C').StringVar(&commonName)
+	init.Flag("lifetime", "duration of the lifetime for the x509 cert.").DurationVar(&lifetime)
 
 	upd := app.Command("update", "Update the value of a secret for a given key")
 	upd.Arg("secretname", "The name of the secret to be updated").Required().StringVar(&secretname)
@@ -121,6 +130,14 @@ func main() {
 		listSecrets()
 	case "get":
 		getSecret()
+
+	case "init":
+		pub, priv, err := crypto.GenerateCertificate(commonName, orgs, lifetime)
+		if err != nil {
+			checkError(err)
+		}
+		err = kube.InitKubecryptSecret(clientset, priv, pub, tlsnamespace, tlssecret)
+		checkError(err)
 
 	case "enc":
 		inputbytes := readInputFromFile(filename)

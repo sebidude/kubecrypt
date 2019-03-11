@@ -30,6 +30,31 @@ func ToManifest(o interface{}, out Output) {
 
 }
 
+func InitKubecryptSecret(clientset *kubernetes.Clientset, tlskey, tlscert []byte, namespace string, secretname string) error {
+
+	data := make(map[string][]byte)
+	data["tls.key"] = tlskey
+	data["tls.crt"] = tlscert
+
+	s := &corev1.Secret{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Secret",
+			APIVersion: "v1",
+		},
+		Type: corev1.SecretTypeTLS,
+		ObjectMeta: metav1.ObjectMeta{
+			Name: secretname,
+		},
+		Data: data,
+	}
+
+	_, err := clientset.CoreV1().Secrets(namespace).Create(s)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func NewSecret(data map[string][]byte, name string) *corev1.Secret {
 	s := &corev1.Secret{
 		TypeMeta: metav1.TypeMeta{
