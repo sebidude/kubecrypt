@@ -41,7 +41,7 @@ This will create a tls secret with name `secretencryption` in namespace `testing
 
 ### Init the kubecrypt secret manually.
 
-In case you don't want to use certs and key generated with openssl:
+In case you don't want to use certs and key generated with kubecrypt, you can use openssl:
 Generate a key and a self-signed cert for kubecrypt
 ```
 openssl genrsa -out tls.key 4096
