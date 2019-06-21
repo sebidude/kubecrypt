@@ -144,7 +144,7 @@ kubecrypt get -n kubecrypt kubecrypt > kubecrypt.backup.txt
 kubecrypt convert kubecrypt -e -n kubecrypt -k secret | kubecrypt yaml -k secret > kubecrypt.yaml
 
 # backup to kubernetes secret
-kubectl get secret -n kubecrypt kubecrypt > kubecrypt.secret.yaml
+kubectl get secret -n kubecrypt kubecrypt -o yaml > kubecrypt.secret.yaml
 
 # backup to key and cert file
 kubecrypt get -n kubecrypt kubecrypt -k tls.key > kubecrypt.key
