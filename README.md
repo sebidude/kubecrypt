@@ -17,7 +17,7 @@ It can do the following things:
 ## Install
 
 ```
-go get github.com/sebidude/kubecrypt
+go get github.com/sebidude/kubecrypt/...
 go install github.com/sebidude/kubecrypt/cmd/kubecrypt
 ```
 
