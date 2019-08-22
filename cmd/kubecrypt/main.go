@@ -32,6 +32,7 @@ var (
 	output       string
 	namespace    string
 	secretname   string
+	keynames     []string
 	keyname      string
 	encrypt      bool
 	tlsinfo      string
@@ -57,7 +58,7 @@ func main() {
 
 	get := app.Command("get", "Get the secret data.")
 	get.Arg("secretname", "Name of the secret.").Required().StringVar(&secretname)
-	get.Flag("key", "Name of the key in the secret").Default("").Short('k').StringVar(&keyname)
+	get.Flag("key", "Names of the keys in the secret").Default("").Short('k').StringsVar(&keynames)
 
 	app.Command("enc", "encrypt a secret")
 	app.Command("dec", "decrypt")
@@ -75,7 +76,7 @@ func main() {
 
 	yml := app.Command("yaml", "Encrypt or Decrypt all values from yaml file")
 
-	yml.Flag("key", "Key in the yaml to be processed").Required().Short('k').StringVar(&keyname)
+	yml.Flag("key", "Keys in the yaml to be processed").Required().Short('k').StringsVar(&keynames)
 	yml.Flag("ecrypt", "Encrypt the values").Short('e').BoolVar(&encrypt)
 
 	convert := app.Command("convert", "convert encrypted yaml data to secret. If -e is passed create a yaml map with encrypted values of the data of the kubernetes secret.")
@@ -163,6 +164,7 @@ func main() {
 		yamldata, _ := processYamlData(encrypt, inputbytes)
 		writeOutputToFile(yamldata)
 	case "convert":
+		keynames = append(keynames, keyname)
 		if encrypt {
 			s, err := loadSecret(secretname, namespace)
 			checkError(err)
@@ -276,15 +278,17 @@ func encryptData(data []byte) []byte {
 	return ciphertext
 }
 
-func printOutput(s corev1.Secret, lookupkey string) {
+func printOutput(s corev1.Secret, lookupkeys []string) {
 
 	keys := reflect.ValueOf(s.Data).MapKeys()
 
-	if len(lookupkey) > 0 {
-		if _, ok := s.Data[lookupkey]; !ok {
-			checkError(fmt.Errorf("The key %s does not exist.\n", lookupkey))
+	if len(lookupkeys) > 0 && lookupkeys[0] != "" {
+		for _, lookupkey := range lookupkeys {
+			if _, ok := s.Data[lookupkey]; !ok {
+				checkError(fmt.Errorf("The key '%s' does not exist.\n", lookupkey))
+			}
+			fmt.Printf("%s\n", s.Data[lookupkey])
 		}
-		fmt.Printf("%s\n", s.Data[lookupkey])
 		return
 
 	} else {
@@ -301,31 +305,35 @@ func processYamlData(encryt bool, content []byte) ([]byte, map[string][]byte) {
 	err := yaml.Unmarshal(content, &yamlcontent)
 	checkError(err)
 
-	if _, ok := yamlcontent[keyname]; !ok {
-		checkError(fmt.Errorf("key does not exist in yaml."))
-	}
-	if yamlmap, ok := yamlcontent[keyname].(map[string]interface{}); ok {
+	for _, keyname := range keynames {
+		if keyname != "" {
+			if _, ok := yamlcontent[keyname]; !ok {
+				checkError(fmt.Errorf("key '%s' does not exist in yaml.", keyname))
+			}
+			if yamlmap, ok := yamlcontent[keyname].(map[string]interface{}); ok {
 
-		for k, v := range yamlmap {
+				for k, v := range yamlmap {
 
-			switch v.(type) {
-			case string:
-				if encrypt {
-					c := encryptData([]byte(v.(string)))
-					yamlmap[k] = base64.RawURLEncoding.EncodeToString(c)
-				} else {
-					s, err := base64.RawURLEncoding.DecodeString(v.(string))
-					checkError(err)
-					c := decryptData(s)
-					yamlmap[k] = string(c)
-					datamap[k] = []byte(c)
+					switch v.(type) {
+					case string:
+						if encrypt {
+							c := encryptData([]byte(v.(string)))
+							yamlmap[k] = base64.RawURLEncoding.EncodeToString(c)
+						} else {
+							s, err := base64.RawURLEncoding.DecodeString(v.(string))
+							checkError(err)
+							c := decryptData(s)
+							yamlmap[k] = string(c)
+							datamap[k] = []byte(c)
+						}
+
+					default:
+						checkError(fmt.Errorf("Only strings are allowed as values."))
+					}
 				}
-
-			default:
-				checkError(fmt.Errorf("Only strings are allowed as values."))
+				yamlcontent[keyname] = yamlmap
 			}
 		}
-		yamlcontent[keyname] = yamlmap
 	}
 	content, err = yaml.Marshal(yamlcontent)
 	checkError(err)
@@ -355,12 +363,12 @@ func getSecret() {
 	secrets := kube.GetSecretList(clientset, namespace)
 	for _, s := range secrets.Items {
 		if s.Name == secretname && secretname != "all" {
-			printOutput(s, keyname)
+			printOutput(s, keynames)
 			return
 		}
 
 		if secretname == "all" {
-			printOutput(s, "")
+			printOutput(s, []string{})
 		}
 
 	}
