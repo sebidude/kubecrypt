@@ -33,6 +33,7 @@ var (
 	namespace    string
 	secretname   string
 	keynames     []string
+	keyname      string
 	encrypt      bool
 	tlsinfo      string
 	tlssecret    string
@@ -81,7 +82,7 @@ func main() {
 	convert := app.Command("convert", "convert encrypted yaml data to secret. If -e is passed create a yaml map with encrypted values of the data of the kubernetes secret.")
 	convert.Arg("secretname", "Name for the converted secret.").Required().StringVar(&secretname)
 	convert.Flag("encrypt", "Encrypt the values (default decrypt").Short('e').BoolVar(&encrypt)
-	convert.Flag("key", "Keys in the yaml to be used as data for the secret").Required().Short('k').StringsVar(&keynames)
+	convert.Flag("key", "Key in the yaml to be used as data for the secret").Required().Short('k').StringVar(&keyname)
 	convert.Flag("labels", "the labels to be applied to the new secret").Short('l').StringMapVar(&labels)
 
 	app.Command("list", "List the secrets.")
@@ -163,18 +164,15 @@ func main() {
 		yamldata, _ := processYamlData(encrypt, inputbytes)
 		writeOutputToFile(yamldata)
 	case "convert":
+		keynames = append(keynames, keyname)
 		if encrypt {
 			s, err := loadSecret(secretname, namespace)
 			checkError(err)
 			m := make(map[string]map[string]string)
-			for _, keyname := range keynames {
-				if keyname != "" {
-					m[keyname] = make(map[string]string)
+			m[keyname] = make(map[string]string)
 
-					for k, v := range s.Data {
-						m[keyname][k] = string(v)
-					}
-				}
+			for k, v := range s.Data {
+				m[keyname][k] = string(v)
 			}
 			d, err := yaml.Marshal(m)
 			checkError(err)
