@@ -25,7 +25,10 @@ go install github.com/sebidude/kubecrypt/cmd/kubecrypt
 
 ## Usage
 
-You can always use the --help flag. Beside handling your secrets you can also use kubecrypt to quickly encrypt some text and share it with your co-workers via chat in a secure way.  
+You can always use the --help flag. Beside handling your secrets you can also use kubecrypt to quickly encrypt some text and share it with your co-workers via chat in a secure way. 
+
+kubecrypt will lookup the `KUBECONFIG` environment variable to find the configuration for the kubernetes client. If the variable is empty it will lookup the default path `$HOME/.kube/config`. If a kubeconfig resides there, it will use this one. You have to set the environment variable `KUBECONFIG` if you want to use a config which is not located at the default path.  
+If `KUBECONFIG` is not set and no configuration is found at the default path, kubecrypt will act as an in-cluster client and will use the token from the service-account of the context it is running in.
 
 ### Init the kubecrypt secret with kubecrypt
 By default kubecrypt will use a secret of type tls named `kubecrypt` in namespace `kubecrypt`. So first create the namespace `kubecrypt` and  then run init
