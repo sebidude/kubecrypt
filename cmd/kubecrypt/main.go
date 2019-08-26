@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"os/user"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"time"
@@ -88,6 +90,23 @@ func main() {
 	app.Command("list", "List the secrets.")
 
 	kubeconfig := os.Getenv("KUBECONFIG")
+	if len(kubeconfig) < 1 {
+		// we try the find the config at the default path.
+		// https://kubernetes.io/docs/concepts/configuration/organize-cluster-access-kubeconfig/
+
+		currentUser, _ := user.Current()
+		if currentUser != nil {
+			if len(currentUser.HomeDir) > 0 {
+				kubeConfigPath := filepath.Join(currentUser.HomeDir, ".kube", "config")
+				_, err := os.Stat(kubeConfigPath)
+				if os.IsNotExist(err) && err != nil {
+					kubeconfig = ""
+				} else {
+					kubeconfig = kubeConfigPath
+				}
+			}
+		}
+	}
 	if len(kubeconfig) < 1 {
 		config, err := rest.InClusterConfig()
 		if err != nil {
