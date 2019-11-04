@@ -3,3 +3,9 @@ data:
   token: foo
 safe:
   username: foobary
+
+moreComplex:
+  values:
+    foo: bar
+  secrets:
+    mypw: foo

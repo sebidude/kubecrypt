@@ -326,32 +326,48 @@ func processYamlData(encryt bool, content []byte) ([]byte, map[string][]byte) {
 
 	for _, keyname := range keynames {
 		if keyname != "" {
-			if _, ok := yamlcontent[keyname]; !ok {
-				checkError(fmt.Errorf("key '%s' does not exist in yaml.", keyname))
-			}
-			if yamlmap, ok := yamlcontent[keyname].(map[string]interface{}); ok {
 
-				for k, v := range yamlmap {
-
-					switch v.(type) {
-					case string:
-						if encrypt {
-							c := encryptData([]byte(v.(string)))
-							yamlmap[k] = base64.RawURLEncoding.EncodeToString(c)
-						} else {
-							s, err := base64.RawURLEncoding.DecodeString(v.(string))
-							checkError(err)
-							c := decryptData(s)
-							yamlmap[k] = string(c)
-							datamap[k] = []byte(c)
-						}
-
-					default:
-						checkError(fmt.Errorf("Only strings are allowed as values."))
+			var yamlmap map[string]interface{}
+			var ok bool
+			keyparts := strings.Split(keyname, ".")
+			if len(keyparts) > 1 {
+				yamlmap = yamlcontent
+				for _, k := range keyparts {
+					yamlmap, ok = yamlmap[k].(map[string]interface{})
+					if !ok {
+						checkError(fmt.Errorf("key '%s' does not exist in yaml.", k))
 					}
 				}
+				//fmt.Printf("%#v\n", yamlmap)
+			} else {
+				yamlmap, ok = yamlcontent[keyname].(map[string]interface{})
+				if !ok {
+					checkError(fmt.Errorf("key '%s' does not exist in yaml.", keyname))
+				}
+			}
+
+			for k, v := range yamlmap {
+				switch v.(type) {
+				case string:
+					if encrypt {
+						c := encryptData([]byte(v.(string)))
+						yamlmap[k] = base64.RawURLEncoding.EncodeToString(c)
+					} else {
+						s, err := base64.RawURLEncoding.DecodeString(v.(string))
+						checkError(err)
+						c := decryptData(s)
+						yamlmap[k] = string(c)
+						datamap[k] = []byte(c)
+					}
+
+				default:
+					checkError(fmt.Errorf("Only strings are allowed as values."))
+				}
+			}
+			if len(keyparts) == 1 {
 				yamlcontent[keyname] = yamlmap
 			}
+
 		}
 	}
 	content, err = yaml.Marshal(yamlcontent)
