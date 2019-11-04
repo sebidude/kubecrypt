@@ -94,6 +94,13 @@ Example yaml file unsafe.yaml:
 data:
   password: f0oB4r
   key: mykey
+app:
+  values:
+    port: "8080"
+    path: "/home"
+  secrets:
+    dbpass: dbpassword
+    apikey: some-super-secret-key
 ```
 
 Now encrypt all values for the keys in the map `data`:
@@ -107,6 +114,9 @@ kubecrypt yaml -e -k data -i unsafe.yaml
 
 # from file to output file
 kubecrypt yaml -e -k data -i unsafe.yaml -o safe.yaml
+
+# descend deeper into some map
+kubecrypt yaml -i unsafe.yaml -e -k app.secrets -o safe.yaml
 ```
 
 If you skip the `-e` flag, the input will be decrypted
