@@ -39,10 +39,10 @@ build-linux: info dep
 	@cp build/linux/$(APPNAME)-$(VERSIONTAG)-$(GITCOMMITHASH) build/linux/$(APPNAME)
 
 image:
-	docker build -t sebidude/kubecrypt:$(VERSIONTAG)-$(KUBEAPIVERSION) .
+	docker build -t sebidude/kubecrypt:$(VERSIONTAG) .
 
 publish:
-	docker push sebidude/kubecrypt:$(VERSIONTAG)-$(KUBEAPIVERSION) 
+	docker push sebidude/kubecrypt:$(VERSIONTAG) 
 
 test: 
 	@echo Running tests
