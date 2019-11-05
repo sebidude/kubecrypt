@@ -13,6 +13,7 @@ BUILDTIME := -X main.buildtime=$(BUILDTIMEVALUE)
 LDFLAGS := '-extldflags "-static" -d -s -w $(GITCOMMIT) $(VERSION) $(BUILDTIME)'
 LDFLAGS_WINDOWS := '-extldflags "-static" -s -w $(GITCOMMIT) $(VERSION) $(BUILDTIME)'
 
+KUBEAPIVERSION := 1.15
 
 clean: clean-tests
 	rm -rf build
@@ -36,6 +37,12 @@ build-linux: info dep
 	GOOS=linux \
 	go build -o build/linux/$(APPNAME)-$(VERSIONTAG)-$(GITCOMMITHASH) -a -ldflags $(LDFLAGS) $(APPSRC)
 	@cp build/linux/$(APPNAME)-$(VERSIONTAG)-$(GITCOMMITHASH) build/linux/$(APPNAME)
+
+image:
+	docker build -t sebidude/kubecrypt:$(VERSIONTAG)-$(KUBEAPIVERSION) .
+
+publish:
+	docker push sebidude/kubecrypt:$(VERSIONTAG)-$(KUBEAPIVERSION) 
 
 test: 
 	@echo Running tests
