@@ -40,6 +40,7 @@ var (
 	tlsinfo      string
 	tlssecret    string
 	tlsnamespace string
+	runlocal     = false
 	keyvalues    = make(map[string]string)
 	labels       = make(map[string]string)
 	remove       []string
@@ -57,7 +58,7 @@ func main() {
 	app.Flag("in", "Input file to read from").Short('i').StringVar(&filename)
 	app.Flag("out", "Output file to write the data to").Short('o').StringVar(&outfile)
 	app.Flag("tls", "Namespace/Name of the tls secret to be used for crypto operations.").Default("kubecrypt/kubecrypt").Envar("KUBECRYPT_SECRET").Short('t').StringVar(&tlsinfo)
-
+	app.Flag("local", "Run with a locally stored secret.").BoolVar(&runlocal)
 	get := app.Command("get", "Get the secret data.")
 	get.Arg("secretname", "Name of the secret.").Required().StringVar(&secretname)
 	get.Flag("key", "Names of the keys in the secret").Default("").Short('k').StringsVar(&keynames)
@@ -129,11 +130,17 @@ func main() {
 	operation := kingpin.MustParse(app.Parse(os.Args[1:]))
 
 	tlsinfoparts := strings.Split(tlsinfo, "/")
-	if len(tlsinfoparts) != 2 {
+	if len(tlsinfoparts) != 2 && !runlocal {
 		checkError(fmt.Errorf("Malformed tlsinfo. Use -t namespace/secret."))
 	}
-	tlsnamespace = tlsinfoparts[0]
-	tlssecret = tlsinfoparts[1]
+
+	if !runlocal {
+		tlsnamespace = tlsinfoparts[0]
+		tlssecret = tlsinfoparts[1]
+
+	} else {
+		tlssecret = tlsinfo
+	}
 
 	if namespace == "" {
 		namespace, _, err = clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
@@ -156,7 +163,7 @@ func main() {
 		if err != nil {
 			checkError(err)
 		}
-		err = kube.InitKubecryptSecret(clientset, priv, pub, tlsnamespace, tlssecret)
+		err = kube.InitKubecryptSecret(clientset, priv, pub, tlsnamespace, tlssecret, runlocal)
 		checkError(err)
 
 	case "enc":
@@ -265,7 +272,7 @@ func writeOutputToFile(data []byte) {
 }
 
 func decryptData(data []byte) []byte {
-	s, err := loadSecret(tlssecret, tlsnamespace)
+	s, err := loadKubecryptSecret(tlssecret, tlsnamespace)
 	checkError(err)
 	if _, ok := s.Data["tls.key"]; !ok {
 		checkError(fmt.Errorf("No tls.key found in secret."))
@@ -283,7 +290,7 @@ func decryptData(data []byte) []byte {
 func encryptData(data []byte) []byte {
 	// load the cert from the secret
 	var certpem []byte
-	s, err := loadSecret(tlssecret, tlsnamespace)
+	s, err := loadKubecryptSecret(tlssecret, tlsnamespace)
 	checkError(err)
 	certpem = s.Data["tls.crt"]
 
@@ -407,6 +414,26 @@ func getSecret() {
 		}
 
 	}
+}
+
+func loadKubecryptSecret(secretname, ns string) (*corev1.Secret, error) {
+	if runlocal {
+		filename := filepath.Join(secretname)
+		content, err := ioutil.ReadFile(filename)
+		if err != nil {
+			return nil, err
+		}
+		kube.SecretsFromManifestBytes(content)
+		return kube.SecretsFromManifestBytes(content)
+	}
+
+	secrets := kube.GetSecretList(clientset, ns)
+	for _, s := range secrets.Items {
+		if s.Name == secretname {
+			return &s, nil
+		}
+	}
+	return nil, fmt.Errorf("Secret %s not found in namespace %s", secretname, ns)
 }
 
 func loadSecret(secretname string, ns string) (*corev1.Secret, error) {

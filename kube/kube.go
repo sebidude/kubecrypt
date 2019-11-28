@@ -1,10 +1,15 @@
 package kube
 
 import (
+	"bytes"
+	"fmt"
+	"os"
+
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/serializer/json"
+	k8syaml "k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -30,8 +35,16 @@ func ToManifest(o interface{}, out Output) {
 
 }
 
-func InitKubecryptSecret(clientset *kubernetes.Clientset, tlskey, tlscert []byte, namespace string, secretname string) error {
+func SecretsFromManifestBytes(m []byte) (*corev1.Secret, error) {
+	s := new(corev1.Secret)
+	dec := k8syaml.NewYAMLOrJSONDecoder(bytes.NewReader(m), len(m))
+	if err := dec.Decode(&s); err != nil {
+		return nil, err
+	}
+	return s, nil
+}
 
+func InitKubecryptSecret(clientset *kubernetes.Clientset, tlskey, tlscert []byte, namespace string, secretname string, runlocal bool) error {
 	data := make(map[string][]byte)
 	data["tls.key"] = tlskey
 	data["tls.crt"] = tlscert
@@ -48,6 +61,21 @@ func InitKubecryptSecret(clientset *kubernetes.Clientset, tlskey, tlscert []byte
 		Data: data,
 	}
 
+	if runlocal {
+		_, err := os.Stat(secretname)
+		if err != nil && !os.IsNotExist(err) {
+			return err
+		} else if err == nil {
+			return fmt.Errorf("File %s already exist. Will not override.", secretname)
+		}
+
+		out, err := os.Create(secretname)
+		if err != nil {
+			return err
+		}
+		ToManifest(s, out)
+		return nil
+	}
 	_, err := clientset.CoreV1().Secrets(namespace).Create(s)
 	if err != nil {
 		return err
