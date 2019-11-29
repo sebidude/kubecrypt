@@ -58,7 +58,7 @@ func main() {
 	app.Flag("in", "Input file to read from").Short('i').StringVar(&filename)
 	app.Flag("out", "Output file to write the data to").Short('o').StringVar(&outfile)
 	app.Flag("tls", "Namespace/Name of the tls secret to be used for crypto operations.").Default("kubecrypt/kubecrypt").Envar("KUBECRYPT_SECRET").Short('t').StringVar(&tlsinfo)
-	app.Flag("local", "Run with a locally stored secret.").BoolVar(&runlocal)
+	app.Flag("local", "Run with a locally stored secret. No cluster interaction possible.").BoolVar(&runlocal)
 	get := app.Command("get", "Get the secret data.")
 	get.Arg("secretname", "Name of the secret.").Required().StringVar(&secretname)
 	get.Flag("key", "Names of the keys in the secret").Default("").Short('k').StringsVar(&keynames)
