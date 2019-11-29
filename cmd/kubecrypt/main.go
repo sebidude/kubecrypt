@@ -108,23 +108,28 @@ func main() {
 			}
 		}
 	}
-	if len(kubeconfig) < 1 {
-		config, err := rest.InClusterConfig()
+	if !runlocal {
+
+		if len(kubeconfig) < 1 {
+			config, err := rest.InClusterConfig()
+			if err != nil {
+				panic(err.Error())
+			}
+			clientconfig = config
+		} else {
+			config, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
+			if err != nil {
+				panic(err.Error())
+			}
+			clientconfig = config
+		}
+		var err error
+		clientset, err = kubernetes.NewForConfig(clientconfig)
 		if err != nil {
 			panic(err.Error())
 		}
-		clientconfig = config
 	} else {
-		config, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
-		if err != nil {
-			panic(err.Error())
-		}
-		clientconfig = config
-	}
-	var err error
-	clientset, err = kubernetes.NewForConfig(clientconfig)
-	if err != nil {
-		panic(err.Error())
+		clientset = nil
 	}
 
 	operation := kingpin.MustParse(app.Parse(os.Args[1:]))
@@ -143,6 +148,7 @@ func main() {
 	}
 
 	if namespace == "" {
+		var err error
 		namespace, _, err = clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
 			clientcmd.NewDefaultClientConfigLoadingRules(),
 			&clientcmd.ConfigOverrides{},
@@ -154,8 +160,14 @@ func main() {
 
 	switch operation {
 	case "list":
+		if runlocal {
+			checkError(fmt.Errorf("Cannot interact with cluster in local mode"))
+		}
 		listSecrets()
 	case "get":
+		if runlocal {
+			checkError(fmt.Errorf("Cannot interact with cluster in local mode"))
+		}
 		getSecret()
 
 	case "init":
@@ -217,6 +229,9 @@ func main() {
 		kube.ToManifest(s, o)
 
 	case "update":
+		if runlocal {
+			checkError(fmt.Errorf("Cannot interact with cluster in local mode"))
+		}
 		s, err := loadSecret(secretname, namespace)
 		checkError(err)
 		if s == nil {

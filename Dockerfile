@@ -5,7 +5,7 @@ RUN mkdir /build
 WORKDIR /build
 RUN git clone https://github.com/sebidude/kubecrypt.git
 WORKDIR /build/kubecrypt
-RUN make unittest build-linux test
+RUN make unittests build-linux test
 
 FROM scratch
 
