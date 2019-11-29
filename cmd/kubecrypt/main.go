@@ -144,15 +144,19 @@ func main() {
 		tlssecret = tlsinfo
 	}
 
-	if namespace == "" {
-		var err error
-		namespace, _, err = clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
-			clientcmd.NewDefaultClientConfigLoadingRules(),
-			&clientcmd.ConfigOverrides{},
-		).Namespace()
-		if err != nil {
-			panic(err.Error())
+	if !runlocal {
+		if namespace == "" {
+			var err error
+			namespace, _, err = clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
+				clientcmd.NewDefaultClientConfigLoadingRules(),
+				&clientcmd.ConfigOverrides{},
+			).Namespace()
+			if err != nil {
+				panic(err.Error())
+			}
 		}
+	} else {
+		namespace = "local"
 	}
 
 	switch operation {
