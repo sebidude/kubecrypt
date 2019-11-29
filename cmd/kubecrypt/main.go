@@ -89,7 +89,7 @@ func main() {
 	convert.Flag("labels", "the labels to be applied to the new secret").Short('l').StringMapVar(&labels)
 
 	app.Command("list", "List the secrets.")
-
+	operation := kingpin.MustParse(app.Parse(os.Args[1:]))
 	kubeconfig := os.Getenv("KUBECONFIG")
 	if len(kubeconfig) < 1 {
 		// we try the find the config at the default path.
@@ -130,8 +130,6 @@ func main() {
 	} else {
 		clientset = nil
 	}
-
-	operation := kingpin.MustParse(app.Parse(os.Args[1:]))
 
 	tlsinfoparts := strings.Split(tlsinfo, "/")
 	if len(tlsinfoparts) != 2 && !runlocal {
