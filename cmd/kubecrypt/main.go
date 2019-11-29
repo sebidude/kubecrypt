@@ -54,6 +54,7 @@ var (
 func main() {
 
 	app := kingpin.New(os.Args[0], "encrypt decrypt data, convert yaml maps to kubernetes secrets and edit kubernetes secrets.")
+	app.Version(fmt.Sprintf("app: %s - commit: %s - version: %s - buildtime: %s", app.Name, gitcommit, appversion, buildtime))
 	app.Flag("namespace", "Kubernetes namespace to be used.").Short('n').Envar("KUBECRYPT_NAMESPACE").StringVar(&namespace)
 	app.Flag("in", "Input file to read from").Short('i').StringVar(&filename)
 	app.Flag("out", "Output file to write the data to").Short('o').StringVar(&outfile)
