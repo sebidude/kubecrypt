@@ -1,6 +1,9 @@
 APPNAME := kubecrypt
 APPSRC := ./cmd/$(APPNAME)
 
+PKG := github.com/sebidude/kubecrypt
+TEST_PKG_LIST := kube crypto
+
 GITCOMMITHASH := $(shell git log --max-count=1 --pretty="format:%h" HEAD)
 GITCOMMIT := -X main.gitcommit=$(GITCOMMITHASH)
 
@@ -44,28 +47,29 @@ image:
 publish:
 	docker push sebidude/kubecrypt:$(VERSIONTAG) 
 
+unittests:
+	CGO_ENABLED=0 go test -v -count=1 -cover -coverprofile cover.out -p 1 $(addprefix $(PKG)/, $(TEST_PKG_LIST))
+
 test: 
 	@echo Running tests
+	@rm -f secret.yaml
+	@build/linux/kubecrypt init --local -t secret.yaml
 	@echo -n "Encrypt yaml map: "	
-	@build/linux/kubecrypt yaml -i unsafe.yaml -e -k data -o safe.yaml
+	@build/linux/kubecrypt yaml --local -t secret.yaml -i unsafe.yaml -e -k data -o safe.yaml
 	@grep foobary safe.yaml >/dev/null
 	@if grep testme safe.yaml >/dev/null; then exit 1; fi
 	@echo "ok"
 	@echo -n "Decrypt yaml map: "
-	@build/linux/kubecrypt yaml -i safe.yaml -k data | grep testme >/dev/null
+	@build/linux/kubecrypt yaml --local -t secret.yaml -i safe.yaml -k data | grep testme >/dev/null
 	@echo "ok"
 	@echo -n "Encrypt and decrypt text: "
-	@echo 123 | build/linux/kubecrypt enc | build/linux/kubecrypt dec | grep 123 >/dev/null
+	@echo 123 | build/linux/kubecrypt enc --local -t secret.yaml | build/linux/kubecrypt dec --local -t secret.yaml | grep 123 >/dev/null
 	@echo "ok"
 	@echo -n "Convert to secret: "
-	@build/linux/kubecrypt convert mysecret -i safe.yaml -k data -o mysecret.yaml
+	@build/linux/kubecrypt convert --local -t secret.yaml mysecret -i safe.yaml -k data -o mysecret.yaml
 	@grep dGVzdG1l mysecret.yaml >/dev/null
 	@echo "ok"
-	@echo -n "Apply secret to cluster: "
-	@kubectl apply -f mysecret.yaml -n kubecrypt
-	@echo -n "Load a secret from the cluster: "
-	@build/linux/kubecrypt -n kubecrypt get mysecret | grep testme >/dev/null
-	@echo "ok"
+	@rm -f secret.yaml
 
 clean-tests:
 	rm safe.yaml mysecret.yaml

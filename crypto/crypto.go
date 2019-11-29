@@ -157,18 +157,6 @@ func ReadPublicKeyFromCertPem(certpem []byte) *rsa.PublicKey {
 	return rsaPublicKey
 }
 
-func ReadPrivateKeyFromPem(certpem string) *rsa.PublicKey {
-	// parse the pubkey from the cert
-	block, _ := pem.Decode([]byte(certpem))
-	var cert *x509.Certificate
-	cert, err := x509.ParseCertificate(block.Bytes)
-	if err != nil {
-		panic(err)
-	}
-	rsaPublicKey := cert.PublicKey.(*rsa.PublicKey)
-	return rsaPublicKey
-}
-
 func ReadPrivateKeyFromFile(filename string) (*rsa.PrivateKey, error) {
 	keybytes, err := ioutil.ReadFile(filename)
 	if err != nil {
@@ -201,6 +189,10 @@ func PrivateKeyToBytes(priv *rsa.PrivateKey) []byte {
 
 // PublicKeyToBytes public key to bytes
 func PublicKeyToBytes(pub *rsa.PublicKey) ([]byte, error) {
+	if pub == nil {
+		return nil, fmt.Errorf("public key is nil")
+	}
+
 	pubASN1, err := x509.MarshalPKIXPublicKey(pub)
 	if err != nil {
 		return nil, err
