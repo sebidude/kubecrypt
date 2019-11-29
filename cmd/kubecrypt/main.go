@@ -109,7 +109,6 @@ func main() {
 		}
 	}
 	if !runlocal {
-
 		if len(kubeconfig) < 1 {
 			config, err := rest.InClusterConfig()
 			if err != nil {
