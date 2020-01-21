@@ -133,6 +133,14 @@ kubecrypt convert mysecret -i safe.yaml -k data -o mysecret.yaml
 ```
 
 ---
+### Create an encrypted yaml map from a kubernetes secret
+
+with `--dry-run` and `--in=-`
+```
+kubectl create secret generic --dry-run foobar --from-file=somefile.json -o yaml | kubecrypt convert -e -k mykey foobar --in=-
+```
+
+---
 ### Update and remove keys from kubernetes secrets in cluster
 
 Update a key of an existing secret, if the key doesn't exist it will be added to the secret
