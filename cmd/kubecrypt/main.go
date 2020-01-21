@@ -206,8 +206,17 @@ func main() {
 	case "convert":
 		keynames = append(keynames, keyname)
 		if encrypt {
-			s, err := loadSecret(secretname, namespace)
-			checkError(err)
+			var s *corev1.Secret
+			var err error
+			if len(filename) > 0 {
+				inputbytes := readInputFromFile(filename)
+				s, err = kube.SecretsFromManifestBytes(inputbytes)
+				checkError(err)
+			} else {
+				s, err = loadSecret(secretname, namespace)
+				checkError(err)
+			}
+
 			m := make(map[string]map[string]string)
 			m[keyname] = make(map[string]string)
 
@@ -220,6 +229,7 @@ func main() {
 			writeOutputToFile(e)
 			break
 		}
+
 		inputbytes := readInputFromFile(filename)
 		_, datamap := processYamlData(encrypt, inputbytes)
 		o := getOutputFile()
