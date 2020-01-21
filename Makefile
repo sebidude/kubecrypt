@@ -73,3 +73,6 @@ test:
 
 clean-tests:
 	rm safe.yaml mysecret.yaml
+
+pack: build-linux
+	@cd build/linux && tar cvfz $(APPNAME)-$(VERSIONTAG).tar.gz $(APPNAME)
