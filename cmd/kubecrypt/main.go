@@ -46,6 +46,7 @@ var (
 	remove       []string
 	filename     = "-"
 	outfile      = "-"
+	fromfile     = ""
 	orgs         []string
 	commonName   string
 	lifetime     time.Duration
@@ -88,6 +89,7 @@ func main() {
 	convert.Flag("encrypt", "Encrypt the values (default decrypt").Short('e').BoolVar(&encrypt)
 	convert.Flag("key", "Key in the yaml to be used as data for the secret").Required().Short('k').StringVar(&keyname)
 	convert.Flag("labels", "the labels to be applied to the new secret").Short('l').StringMapVar(&labels)
+	convert.Flag("from-file", "Read the input from a file.").Short('f').StringVar(&fromfile)
 
 	app.Command("list", "List the secrets.")
 	operation := kingpin.MustParse(app.Parse(os.Args[1:]))
@@ -208,8 +210,8 @@ func main() {
 		if encrypt {
 			var s *corev1.Secret
 			var err error
-			if len(filename) > 0 {
-				inputbytes := readInputFromFile(filename)
+			if len(fromfile) > 0 {
+				inputbytes := readInputFromFile(fromfile)
 				s, err = kube.SecretsFromManifestBytes(inputbytes)
 				checkError(err)
 			} else {

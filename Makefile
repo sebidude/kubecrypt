@@ -69,10 +69,17 @@ test:
 	@build/linux/kubecrypt convert --local -t secret.yaml mysecret -i safe.yaml -k data -o mysecret.yaml
 	@grep dGVzdG1l mysecret.yaml >/dev/null
 	@echo "ok"
+	@echo -n "Convert from secret to safe yaml: "
+	@build/linux/kubecrypt convert --local -t secret.yaml -e mysecret -f mysecret.yaml -k secret -o safemap.yaml
+	@if ! grep password safemap.yaml >/dev/null; then exit 1; fi
+	@echo "ok"
+	@echo -n "Convert from secret stdin to safe yaml: "
+	@cat  mysecret.yaml | build/linux/kubecrypt convert --local -t secret.yaml -e mysecret -k secret --from-file=- | grep password >/dev/null
+	@echo "ok"
 	@rm -f secret.yaml
 
 clean-tests:
-	rm safe.yaml mysecret.yaml
+	rm safe.yaml mysecret.yaml safemap.yaml
 
 pack: build-linux
 	@cd build/linux && tar cvfz $(APPNAME)-$(VERSIONTAG).tar.gz $(APPNAME)

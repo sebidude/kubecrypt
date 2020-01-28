@@ -135,9 +135,17 @@ kubecrypt convert mysecret -i safe.yaml -k data -o mysecret.yaml
 ---
 ### Create an encrypted yaml map from a kubernetes secret
 
-with `--dry-run` and `--in=-`
+with `--dry-run` and `--from-file=-`
 ```
-kubectl create secret generic --dry-run foobar --from-file=somefile.json -o yaml | kubecrypt convert -e -k mykey foobar --in=-
+kubectl create secret generic --dry-run foobar --from-file=somefile.json -o yaml | kubecrypt convert -e -k mykey foobar --from-file=-
+```
+
+or 
+
+```
+kubectl create secret generic --dry-run foobar --from-file=somefile.json -o yaml > mysecret.yaml
+kubecrypt convert -e -k mykey foobar --from-file=mysecret.yaml
+kubecrypt convert -e -k mykey foobar -f mysecret.yaml
 ```
 
 ---
