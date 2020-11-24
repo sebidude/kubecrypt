@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/base64"
 	"fmt"
@@ -18,6 +19,7 @@ import (
 	"github.com/sebidude/kubecrypt/kube"
 
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	"k8s.io/client-go/rest"
@@ -476,6 +478,8 @@ func loadSecret(secretname string, ns string) (*corev1.Secret, error) {
 }
 
 func updateSecret(s *corev1.Secret, items interface{}) {
+	ctx := context.Background()
+	defer ctx.Done()
 
 	switch items.(type) {
 	case []string:
@@ -490,6 +494,6 @@ func updateSecret(s *corev1.Secret, items interface{}) {
 		}
 	}
 
-	_, err := clientset.CoreV1().Secrets(namespace).Update(s)
+	_, err := clientset.CoreV1().Secrets(namespace).Update(ctx, s, metav1.UpdateOptions{})
 	checkError(err)
 }

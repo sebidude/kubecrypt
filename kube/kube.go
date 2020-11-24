@@ -2,6 +2,7 @@ package kube
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"os"
 
@@ -18,7 +19,9 @@ type Output interface {
 }
 
 func GetSecretList(clientset *kubernetes.Clientset, namespace string) *corev1.SecretList {
-	secrets, err := clientset.CoreV1().Secrets(namespace).List(metav1.ListOptions{})
+	ctx := context.Background()
+	defer ctx.Done()
+	secrets, err := clientset.CoreV1().Secrets(namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		panic(err)
 	}
@@ -45,6 +48,9 @@ func SecretsFromManifestBytes(m []byte) (*corev1.Secret, error) {
 }
 
 func InitKubecryptSecret(clientset *kubernetes.Clientset, tlskey, tlscert []byte, namespace string, secretname string, runlocal bool) error {
+	ctx := context.Background()
+	defer ctx.Done()
+
 	data := make(map[string][]byte)
 	data["tls.key"] = tlskey
 	data["tls.crt"] = tlscert
@@ -76,7 +82,7 @@ func InitKubecryptSecret(clientset *kubernetes.Clientset, tlskey, tlscert []byte
 		ToManifest(s, out)
 		return nil
 	}
-	_, err := clientset.CoreV1().Secrets(namespace).Create(s)
+	_, err := clientset.CoreV1().Secrets(namespace).Create(ctx, s, metav1.CreateOptions{})
 	if err != nil {
 		return err
 	}
