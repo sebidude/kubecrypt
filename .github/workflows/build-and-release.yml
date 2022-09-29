@@ -17,7 +17,7 @@ jobs:
           go-version: 1.19
         id: go
       - name: Check out code into the Go module directory
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Build and pack App
         run: |
@@ -50,3 +50,19 @@ jobs:
           asset_path: ./build/linux/kubecrypt-${{ steps.get_version.outputs.VERSION }}.tar.gz
           asset_name: kubecrypt-${{ steps.get_version.outputs.VERSION }}.tar.gz
           asset_content_type: application/tar+gzip
+      
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_ACCESSTOKEN }}
+      
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v3
+        with:
+          context: .
+          push: true
+          tags: sebidude/kubecrypt:${{ steps.get_version.outputs.VERSION }},sebidude/kubecrypt:latest
+          github-token: ${{ secrets.DOCKER_ACCESSTOKEN }}
+      
+      
