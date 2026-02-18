@@ -43,7 +43,7 @@ macos:
 
 darwin: macos
 
-install: build-$(TARGET_OS)
+install: build
 	cp build/$(TARGET_OS)/kubecrypt $$GOPATH/bin/
 	
 build: info dep
@@ -93,7 +93,7 @@ test:
 	@rm -f secret.yaml
 
 clean-tests:
-	rm safe.yaml mysecret.yaml safemap.yaml
+	rm -f safe.yaml mysecret.yaml safemap.yaml
 
 pack: build
 	@cd build/$(TARGET_OS) && tar cvfz $(APPNAME)-$(VERSIONTAG).tar.gz $(APPNAME)
