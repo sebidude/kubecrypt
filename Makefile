@@ -29,28 +29,31 @@ info:
 	@echo - buildtime: $(BUILDTIMEVALUE) 
 
 dep:
-	@go get -d ./...
+	@go get ./...
 
-install: build-linux
-	cp build/linux/kubecrypt $$GOPATH/bin/
+linux:
+	@$(eval TARGET_OS := linux)
+	@$(eval TARGET_LDFLAGS := $(LDFLAGS))
+	@$(eval TARGET_ARCH := amd64)
+
+macos:
+	@$(eval TARGET_OS := darwin)
+	@$(eval TARGET_LDFLAGS := $(LDFLAGS_MACOS))
+	@$(eval TARGET_ARCH := arm64)
+
+darwin: macos
+
+install: build-$(TARGET_OS)
+	cp build/$(TARGET_OS)/kubecrypt $$GOPATH/bin/
 	
-build-linux: info dep
-	@echo Building for linux
-	@mkdir -p build/linux
+build: info dep
+	@echo Building for $(TARGET_OS) 
+	@mkdir -p build/$(TARGET_OS)
 	@CGO_ENABLED=0 \
-	GOOS=linux \
-	go build -o build/linux/$(APPNAME)-$(VERSIONTAG)-$(GITCOMMITHASH) -a -ldflags $(LDFLAGS) $(APPSRC)
-	@cp build/linux/$(APPNAME)-$(VERSIONTAG)-$(GITCOMMITHASH) build/linux/$(APPNAME)
-
-build-macos: info dep
-	@echo Building for macos 
-	@mkdir -p build/macos
-	@CGO_ENABLED=0 \
-	GOOS=darwin \
-	GOARCH=arm64 \
-	go build -o build/macos/$(APPNAME)-$(VERSIONTAG)-$(GITCOMMITHASH) -a -ldflags $(LDFLAGS_MACOS) $(APPSRC)
-	@cp build/macos/$(APPNAME)-$(VERSIONTAG)-$(GITCOMMITHASH) build/macos/$(APPNAME)
-
+	GOOS=$(TARGET_OS) \
+	GOARCH=$(TARGET_ARCH) \
+	go build -o build/$(TARGET_OS)/$(APPNAME)-$(VERSIONTAG)-$(GITCOMMITHASH) -a -ldflags $(TARGET_LDFLAGS) $(APPSRC)
+	@cp build/$(TARGET_OS)/$(APPNAME)-$(VERSIONTAG)-$(GITCOMMITHASH) build/$(TARGET_OS)/$(APPNAME)
 
 image:
 	docker build -t sebidude/kubecrypt:$(VERSIONTAG) .
@@ -64,33 +67,33 @@ unittests:
 test: 
 	@echo Running tests
 	@rm -f secret.yaml
-	@build/macos/kubecrypt init --local -t secret.yaml
+	@build/$(TARGET_OS)/kubecrypt init --local -t secret.yaml
 	@echo -n "Encrypt yaml map: "	
-	@build/macos/kubecrypt yaml --local -t secret.yaml -i unsafe.yaml -e -k data -o safe.yaml
+	@build/$(TARGET_OS)/kubecrypt yaml --local -t secret.yaml -i unsafe.yaml -e -k data -o safe.yaml
 	@grep foobary safe.yaml >/dev/null
 	@if grep testme safe.yaml >/dev/null; then exit 1; fi
 	@echo "ok"
 	@echo -n "Decrypt yaml map: "
-	@build/macos/kubecrypt yaml --local -t secret.yaml -i safe.yaml -k data | grep testme >/dev/null
+	@build/$(TARGET_OS)/kubecrypt yaml --local -t secret.yaml -i safe.yaml -k data | grep testme >/dev/null
 	@echo "ok"
 	@echo -n "Encrypt and decrypt text: "
-	@echo 123 | build/macos/kubecrypt enc --local -t secret.yaml | build/macos/kubecrypt dec --local -t secret.yaml | grep 123 >/dev/null
+	@echo 123 | build/$(TARGET_OS)/kubecrypt enc --local -t secret.yaml | build/$(TARGET_OS)/kubecrypt dec --local -t secret.yaml | grep 123 >/dev/null
 	@echo "ok"
 	@echo -n "Convert to secret: "
-	@build/macos/kubecrypt convert --local -t secret.yaml mysecret -i safe.yaml -k data -o mysecret.yaml
+	@build/$(TARGET_OS)/kubecrypt convert --local -t secret.yaml mysecret -i safe.yaml -k data -o mysecret.yaml
 	@grep dGVzdG1l mysecret.yaml >/dev/null
 	@echo "ok"
 	@echo -n "Convert from secret to safe yaml: "
-	@build/macos/kubecrypt convert --local -t secret.yaml -e mysecret -f mysecret.yaml -k secret -o safemap.yaml
+	@build/$(TARGET_OS)/kubecrypt convert --local -t secret.yaml -e mysecret -f mysecret.yaml -k secret -o safemap.yaml
 	@if ! grep password safemap.yaml >/dev/null; then exit 1; fi
 	@echo "ok"
 	@echo -n "Convert from secret stdin to safe yaml: "
-	@cat  mysecret.yaml | build/macos/kubecrypt convert --local -t secret.yaml -e mysecret -k secret --from-file=- | grep password >/dev/null
+	@cat  mysecret.yaml | build/$(TARGET_OS)/kubecrypt convert --local -t secret.yaml -e mysecret -k secret --from-file=- | grep password >/dev/null
 	@echo "ok"
 	@rm -f secret.yaml
 
 clean-tests:
 	rm safe.yaml mysecret.yaml safemap.yaml
 
-pack: build-linux
-	@cd build/linux && tar cvfz $(APPNAME)-$(VERSIONTAG).tar.gz $(APPNAME)
+pack: build
+	@cd build/$(TARGET_OS) && tar cvfz $(APPNAME)-$(VERSIONTAG).tar.gz $(APPNAME)

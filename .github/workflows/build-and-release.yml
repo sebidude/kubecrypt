@@ -21,7 +21,7 @@ jobs:
 
       - name: Build and pack App
         run: |
-          make build-linux test pack
+          make linux build test pack
         id: build
 
       - name: Get the version
