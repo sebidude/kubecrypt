@@ -5,7 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 	"os/user"
 	"path/filepath"
@@ -284,7 +284,7 @@ func readInputFromFile(filename string) []byte {
 		defer input.Close()
 	}
 
-	data, err := ioutil.ReadAll(input)
+	data, err := io.ReadAll(input)
 	checkError(err)
 	return data
 }
@@ -450,7 +450,7 @@ func getSecret() {
 func loadKubecryptSecret(secretname, ns string) (*corev1.Secret, error) {
 	if runlocal {
 		filename := filepath.Join(secretname)
-		content, err := ioutil.ReadFile(filename)
+		content, err := os.ReadFile(filename)
 		if err != nil {
 			return nil, err
 		}

@@ -11,9 +11,9 @@ import (
 	"encoding/pem"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"math/big"
+	"os"
 	"time"
 )
 
@@ -158,7 +158,7 @@ func ReadPublicKeyFromCertPem(certpem []byte) *rsa.PublicKey {
 }
 
 func ReadPrivateKeyFromFile(filename string) (*rsa.PrivateKey, error) {
-	keybytes, err := ioutil.ReadFile(filename)
+	keybytes, err := os.ReadFile(filename)
 	if err != nil {
 		return nil, err
 	}
@@ -167,7 +167,7 @@ func ReadPrivateKeyFromFile(filename string) (*rsa.PrivateKey, error) {
 }
 
 func ReadPublicKeyFromFile(filename string) (*rsa.PublicKey, error) {
-	keybytes, err := ioutil.ReadFile(filename)
+	keybytes, err := os.ReadFile(filename)
 	if err != nil {
 		return nil, err
 	}

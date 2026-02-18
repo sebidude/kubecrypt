@@ -1,7 +1,6 @@
 package kube
 
 import (
-	"io/ioutil"
 	"os"
 	"testing"
 	"time"
@@ -28,7 +27,7 @@ func TestInitKubecryptSecret(t *testing.T) {
 }
 
 func TestSecretFromManifestBytes(t *testing.T) {
-	secretBytes, err := ioutil.ReadFile("secret.yaml")
+	secretBytes, err := os.ReadFile("secret.yaml")
 	assert.NoError(t, err, "File secret.yaml must be read.")
 
 	s, err := SecretsFromManifestBytes(secretBytes)
