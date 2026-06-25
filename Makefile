@@ -17,7 +17,7 @@ LDFLAGS := '-extldflags "-static" -d -s -w $(GITCOMMIT) $(VERSION) $(BUILDTIME)'
 LDFLAGS_MACOS := '-extldflags "-static" -s -w $(GITCOMMIT) $(VERSION) $(BUILDTIME)'
 LDFLAGS_WINDOWS := '-extldflags "-static" -s -w $(GITCOMMIT) $(VERSION) $(BUILDTIME)'
 
-KUBEAPIVERSION := 1.35
+KUBEAPIVERSION := 1.36
 
 clean: clean-tests
 	rm -rf build
